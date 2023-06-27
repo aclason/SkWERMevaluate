@@ -4,10 +4,10 @@
 \alias{read_vri_bem}
 \title{Read habitat model (vri_bem) layer}
 \usage{
-read_vri_bem(dsn, layer)
+read_vri_bem(gdbpath, layername)
 }
 \arguments{
-\item{layer}{}
+\item{layername}{}
 }
 \description{
 it's possible to use the output of SSGM-VRI-BEM (vri_bem.shp) here, but more likely

@@ -1,7 +1,9 @@
 
 
-
-
+bcdata::bcdc_describe_feature("3544ad91-0cf2-4926-a08a-bfe42d9a031d")%>%
+  print(.,n=20)
+tnad <- bcdc_query_geodata("3544ad91-0cf2-4926-a08a-bfe42d9a031d") %>%
+  filter(INTERSECTS(nadBnd))
 
 bcdc_get_record("results-forest-cover-silviculture")
 

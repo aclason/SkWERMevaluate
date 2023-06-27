@@ -2,13 +2,27 @@
 % Please edit documentation in R/readLayers.R
 \name{get_roads}
 \alias{get_roads}
-\title{Title}
+\title{Read the roads layer}
 \usage{
-get_roads(tsa)
+get_roads(
+  aoi = "Lakes TSA",
+  aoi_gdbpath = NULL,
+  aoi_layername = NULL,
+  savetofile = FALSE
+)
 }
 \arguments{
-\item{tsa}{}
+\item{aoi}{name of TSA. default set to "Lakes TSA"}
+
+\item{aoi_gdbpath}{if no TSA name provided, where is the gdb containing the AOI}
+
+\item{aoi_layername}{if no TSA name provided, what is the layername for the AOI}
+
+\item{savetofile}{}
 }
 \description{
-Title
+Read the roads layer
+}
+\details{
+You have the option of saving the roads layer to file
 }
