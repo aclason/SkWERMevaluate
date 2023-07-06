@@ -9,3 +9,10 @@ This R package supports wildlife habitat modelling by importing model outputs (h
 Polygons are then randomly selected to enable field assessments. 
 
 
+Install `SkWERMevaluate` from github.
+
+```r
+install.packages("devtools")
+devtools::install_github("aclason/SkWERMevaluate", build_vignettes = TRUE)
+```
+
