@@ -3,10 +3,11 @@
 #'
 #' @param gdbpath pathway to geodatabase containing VRI-BEM layer
 #' @param layername name of the VRI-BEM layer
-#' @param minsize minimum area for a polygon (m2)
-#' @param maxhabscore maximum habitat score (numeric 1 - 5)
-#' @param sec_beu %(0-100) of secondary BEU class of a polygon allowed. Default = 0% (i.e.
+#' @param minsize minimum area for a polygon (m2) to be included for site assessment
+#' @param minhabscore maximum habitat score (numeric 1 - 5) to be included for site assessment
+#' @param sec_beu %(0-100) of a secondary BEU class of a polygon allowed. Default = 0% (i.e.
 #' no complex polygons selected for validation)
+#' @param incl_hibernation
 #'
 #' @import data.table
 #'
@@ -14,19 +15,19 @@
 #' @export
 #' @description
 #' This function imports the habitat layer (or calls it from memory), removes unnecessary columns
-#' re-arranges the rows to allow 3 rows to represent primary, secondary and tertiary BEU
-#' ecosystem calls and re-organizes the data table to create logical groupings for site selection
+#' re-arranges rows to represent primary, secondary and tertiary BEU if multiple BEU classes/polygon
+#' are allowed and re-organizes the data table to create columns for field assessment of the habitat model
 #'
 #' @details
 #' The minsize parameter is included to remove right off the start numerous "sliver" polygons that are
 #' created during the VRI-BEM combination process. Polygons smaller than this are meaningless, with a
 #' default value of 10000 m2 (1 ha).
 #'
-#' Note - there are 722 polygons with a tertiary BEU class, with a SDEC_3 value == 0
+#' murar = bear, mulal = moose
 #'
 #' @examples
 prep_vri_bem <- function(gdbpath, hab_layername, minsize=10000,
-                         minhabscore=2, sec_beu = 0){
+                         minhabscore=2, sec_beu = 0, incl_hibernation = FALSE){
   Hab_lay <- read_vri_bem(gdbpath = gdbpath, layername=hab_layername)
 
   #remove slivers
@@ -44,7 +45,8 @@ prep_vri_bem <- function(gdbpath, hab_layername, minsize=10000,
 
   Hab_layDT[,PolyID := paste(FEATURE_ID,"_",TEIS_ID,sep = "")]
 
-  #find duplicates - there can be a bunch of reasons (not obvious) for duplicate values
+  #find duplicates - there can be a bunch of reasons for duplicate values - most seem like edge cases
+  #e.g. on the outer boundary
   setDT(Hab_layDT)[, dupID := rowid(PolyID)]
 
   #update polyid by dup value
@@ -134,23 +136,28 @@ prep_vri_bem <- function(gdbpath, hab_layername, minsize=10000,
 
 
   #3. Add a column that combined BEC call (from VRI)--------------------------------------
-  Hab_layDT[,BGZ := paste0(BGC_ZONE,BGC_SUBZON,BGC_VRT)]
+  Hab_layDT[,BGC_LABEL := paste0(BGC_ZONE,BGC_SUBZON,BGC_VRT)]
 
   #4. select min habitat scores -----------------------------------------------------------
-  #bears
-  bear_hab_val_cols <- c("PolyID","MURAR_PEFD_6C_SU_WA", "MURAR_PLFD_6C_SU_WA",
-                         "MURAR_SFD_6C_SU_WA","MURAR_FFD_6C_SU_WA",
-                         "MURAR_HI_6C_SU_WA")
-
+  ### bears
+  if(incl_hibernation == TRUE){
+    bear_hab_val_cols <- c("PolyID","MURAR_PEFD_6C_SU_WA", "MURAR_PLFD_6C_SU_WA",
+                           "MURAR_SFD_6C_SU_WA","MURAR_FFD_6C_SU_WA",
+                           "MURAR_HI_6C_SU_WA")
+  }else{
+    bear_hab_val_cols <- c("PolyID","MURAR_PEFD_6C_SU_WA", "MURAR_PLFD_6C_SU_WA",
+                           "MURAR_SFD_6C_SU_WA","MURAR_FFD_6C_SU_WA")
+  }
+  #only include polys with at least one col of min habitat score
   bear_hab_layDT_scores <- Hab_layDT[,..bear_hab_val_cols]
   bear_hab_layDT_scores[, murar_hab_min := min(.SD, na.rm = TRUE),
                    .SDcols = bear_hab_val_cols[!bear_hab_val_cols == 'PolyID'], by ="PolyID"]
   bear_hab_layDT_scores[murar_hab_min=="Inf", murar_hab_min:=NA]
 
-  #moose
+  ### moose
   moose_hab_val_cols <- c("PolyID","MALAN_WFD_6C_SU_WA", "MALAN_GFD_6C_SU_WA",
                           "MALAN_WST_6C_SU_WA")
-
+  #only include polys with at least one col of min habitat score
   moose_hab_layDT_scores <- Hab_layDT[,..moose_hab_val_cols]
   moose_hab_layDT_scores[, malan_hab_min := min(.SD, na.rm = TRUE),
                    .SDcols = moose_hab_val_cols[!moose_hab_val_cols == 'PolyID'], by ="PolyID"]
@@ -173,10 +180,10 @@ prep_vri_bem <- function(gdbpath, hab_layername, minsize=10000,
 
 
   #6. re-order and keep only needed columns -----------------------------------------------------
-  colKeep <- c("PolyID","TEIS_ID", "BCLCS_LV_2", "BCLCS_LV_3", "BGC_ZONE", "BGZ",
+  colKeep <- c("PolyID","TEIS_ID", "BCLCS_LV_2", "BCLCS_LV_3", "BGC_LABEL",
                "SOIL_MOISTURE_REGIME_1","SOIL_NUTRIENT_REGIME",
                "SDEC","BEUMC", "REALM","STAND", "STRCT",
-               "PROJ_AGE_1","CR_CLOSURE","CROWN_BEAR","CROWN_MOOSE",
+               "PROJ_AGE_1","CR_CLOSURE",
                "SPEC_CD_1","SPEC_PCT_1", "SPEC_CD_2",
                "SPEC_PCT_2", "SPEC_CD_3", "SPEC_PCT_3", "SPEC_CD_4", "SPEC_PCT_4",
                "SPEC_CD_5","SPEC_PCT_5", "SPEC_CD_6", "SPEC_PCT_6", "MEAN_ASP",

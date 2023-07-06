@@ -54,7 +54,7 @@ read_vri_bem <- function(gdbpath,layername){
 
 
 #' Read cutblock layer
-#' @param tsa area of interest to download the consolidated cutblock layer.
+#' @param aoi area of interest to download the consolidated cutblock layer.
 #' Right now, just using tsa, but could replace with any area of interest
 #' @return
 #' @export

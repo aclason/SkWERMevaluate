@@ -1,5 +1,5 @@
 ---
-title: "Importing_01"
+title: "Preparing the habitat model"
 output: rmarkdown::html_vignette
 vignette: >
   %\VignetteIndexEntry{Importing_01}
@@ -17,3 +17,6 @@ knitr::opts_chunk$set(
 ```{r setup}
 library(SkWERMevaluate)
 ```
+
+**SkWERMevaluate is an R package developed to process the SkWERM habitat model, connect the model to different geographic layers of interest that combined drive the selection of sites for habitat model evaluation.**
+

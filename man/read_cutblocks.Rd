@@ -7,7 +7,7 @@
 read_cutblocks(aoi, gdbpath = NULL, layername = NULL)
 }
 \arguments{
-\item{tsa}{area of interest to download the consolidated cutblock layer.
+\item{aoi}{area of interest to download the consolidated cutblock layer.
 Right now, just using tsa, but could replace with any area of interest}
 }
 \description{

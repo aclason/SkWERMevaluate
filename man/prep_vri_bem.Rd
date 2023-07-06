@@ -9,30 +9,33 @@ prep_vri_bem(
   hab_layername,
   minsize = 10000,
   minhabscore = 2,
-  sec_beu = 0
+  sec_beu = 0,
+  incl_hibernation = FALSE
 )
 }
 \arguments{
 \item{gdbpath}{pathway to geodatabase containing VRI-BEM layer}
 
-\item{minsize}{minimum area for a polygon (m2)}
+\item{minsize}{minimum area for a polygon (m2) to be included for site assessment}
 
-\item{sec_beu}{\%(0-100) of secondary BEU class of a polygon allowed. Default = 0\% (i.e.
+\item{minhabscore}{maximum habitat score (numeric 1 - 5) to be included for site assessment}
+
+\item{sec_beu}{\%(0-100) of a secondary BEU class of a polygon allowed. Default = 0\% (i.e.
 no complex polygons selected for validation)}
 
-\item{layername}{name of the VRI-BEM layer}
+\item{incl_hibernation}{}
 
-\item{maxhabscore}{maximum habitat score (numeric 1 - 5)}
+\item{layername}{name of the VRI-BEM layer}
 }
 \description{
 This function imports the habitat layer (or calls it from memory), removes unnecessary columns
-re-arranges the rows to allow 3 rows to represent primary, secondary and tertiary BEU
-ecosystem calls and re-organizes the data table to create logical groupings for site selection
+re-arranges rows to represent primary, secondary and tertiary BEU if multiple BEU classes/polygon
+are allowed and re-organizes the data table to create columns for field assessment of the habitat model
 }
 \details{
 The minsize parameter is included to remove right off the start numerous "sliver" polygons that are
 created during the VRI-BEM combination process. Polygons smaller than this are meaningless, with a
 default value of 10000 m2 (1 ha).
 
-Note - there are 722 polygons with a tertiary BEU class, with a SDEC_3 value == 0
+murar = bear, mulal = moose
 }
