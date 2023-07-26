@@ -2,7 +2,7 @@
 % Please edit documentation in R/joinLayers.R
 \name{join_huckleberry}
 \alias{join_huckleberry}
-\title{Title}
+\title{Join with predicted huckleberry layer}
 \usage{
 join_huckleberry(Hab_lay, huck_path, huck_layername, poly_function = "mean")
 }
@@ -10,5 +10,5 @@ join_huckleberry(Hab_lay, huck_path, huck_layername, poly_function = "mean")
 \item{huck_layername}{}
 }
 \description{
-Title
+Join with predicted huckleberry layer
 }

@@ -1,56 +1,30 @@
 
 
-#' Join with land ownership
+#' Remove private land
 #'
-#' @param Hab_lay Habitat layer (sf) typically created in created by clean_vri_bem
-#' @param landgdb Geodatabase pathway that contains the land ownerships.
-#' @param landlayers names of the land ownship layers. This currently
-#' defaults to the layers given in 2022
+#' @param Hab_lay
+#' @param gdbpath
+#' @param layername
 #'
 #' @return
 #' @export
-#' @description
-#' TO DO: import new tenures and land ownership boundaries
-#'
 #'
 #' @examples
-join_landTypes <- function(Hab_lay,
-                          landgdb="D:/Github/Moose/SSAF_habitat_site_selection/data/SSAF_SiteSelection.gdb",
-                          landlayers =c("land_ownership_icf","parks_ssaf_211119","tenures_ssaf_211125",
-                                        "woodlot_ComFor_ssaf_211126","tfl_ssaf_211126"),
-                          largest = TRUE){
-  land_temp <- map(landlayers,~ st_read(dsn=landgdb,layer =.x) %>%
-                     st_zm()%>%
-                     st_make_valid())
-  names(land_temp) <- landlayers
+remove_privateLand <- function(Hab_lay, gdbpath, layername){
 
-  #Hab_lay_sm <- Hab_lay[1:2000,]
+  priv_layer <- st_read(dsn = gdbpath, layer = layername)
 
-  #join with ownerships
-  Hab_lay_l <- land_temp$land_ownership_icf %>%
-      dplyr::select(WNRSHPCLSS)%>%
-      st_join(Hab_lay,., left = TRUE, largest = largest)
+  polys_ex <- Hab_lay %>%
+    st_intersects(.,priv_layer, sparse = TRUE)
 
-  #join with tenures
-  Hab_lay_l <- land_temp$tenures_ssaf_211125 %>%
-    dplyr::select(TENURE_TYPE)%>%
-    st_join(Hab_lay_l,., left=TRUE, largest = largest)
+  Hab_lay_rem <- filter(Hab_lay, lengths(polys_ex) == 0)
+  return(Hab_lay_rem)
 
-  #join with parks and protected areas
-  Hab_lay_l <- land_temp$parks_ssaf_211119 %>%
-    dplyr::select(PROTECTED_LANDS_NAME)%>%
-    st_join(Hab_lay_l,., left=TRUE, largest = largest)
+  }
 
-  #join with tfls
-  Hab_lay_l <- land_temp$woodlot_ComFor_ssaf_211126 %>%
-    dplyr::select(CLNTNM,LFCCLSTTSC)%>%
-    st_join(Hab_lay_l,., left=TRUE, largest = largest)
 
-  setnames(Hab_lay_l, old = c("WNRSHPCLSS","PROTECTED_LANDS_NAME","CLNTNM","LFCCLSTTSC"),
-           new = c("OWNER_TYPE","PARKS","WOODLOT_OWNER","WOODLOT_ACTIVE"))
 
-  return(Hab_lay_l)
-}
+
 
 
 
@@ -127,7 +101,7 @@ join_ccb <- function(Hab_lay, aoi, gdbpath=NULL, layername=NULL){
 }
 
 
-#' Title
+#' Join with predicted huckleberry layer
 #'
 #' @param Hab_lay
 #' @param huck_path
@@ -159,6 +133,58 @@ join_huckleberry <- function(Hab_lay, huck_path, huck_layername, poly_function =
 
 }
 
+
+#' Join with land ownership
+#'
+#' @param Hab_lay Habitat layer (sf) typically created in created by clean_vri_bem
+#' @param landgdb Geodatabase pathway that contains the land ownerships.
+#' @param landlayers names of the land ownship layers. This currently
+#' defaults to the layers given in 2022
+#'
+#' @return
+#' @export
+#' @description
+#' Old function - I will delete
+#'
+#'
+#' @examples
+join_landTypes <- function(Hab_lay,
+                           landgdb="D:/Github/Moose/SSAF_habitat_site_selection/data/SSAF_SiteSelection.gdb",
+                           landlayers =c("land_ownership_icf","parks_ssaf_211119","tenures_ssaf_211125",
+                                         "woodlot_ComFor_ssaf_211126","tfl_ssaf_211126"),
+                           largest = TRUE){
+  land_temp <- map(landlayers,~ st_read(dsn=landgdb,layer =.x) %>%
+                     st_zm()%>%
+                     st_make_valid())
+  names(land_temp) <- landlayers
+
+  #Hab_lay_sm <- Hab_lay[1:2000,]
+
+  #join with ownerships
+  Hab_lay_l <- land_temp$land_ownership_icf %>%
+    dplyr::select(WNRSHPCLSS)%>%
+    st_join(Hab_lay,., left = TRUE, largest = largest)
+
+  #join with tenures
+  Hab_lay_l <- land_temp$tenures_ssaf_211125 %>%
+    dplyr::select(TENURE_TYPE)%>%
+    st_join(Hab_lay_l,., left=TRUE, largest = largest)
+
+  #join with parks and protected areas
+  Hab_lay_l <- land_temp$parks_ssaf_211119 %>%
+    dplyr::select(PROTECTED_LANDS_NAME)%>%
+    st_join(Hab_lay_l,., left=TRUE, largest = largest)
+
+  #join with tfls
+  Hab_lay_l <- land_temp$woodlot_ComFor_ssaf_211126 %>%
+    dplyr::select(CLNTNM,LFCCLSTTSC)%>%
+    st_join(Hab_lay_l,., left=TRUE, largest = largest)
+
+  setnames(Hab_lay_l, old = c("WNRSHPCLSS","PROTECTED_LANDS_NAME","CLNTNM","LFCCLSTTSC"),
+           new = c("OWNER_TYPE","PARKS","WOODLOT_OWNER","WOODLOT_ACTIVE"))
+
+  return(Hab_lay_l)
+}
 
 
 

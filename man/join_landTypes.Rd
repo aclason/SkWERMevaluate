@@ -21,5 +21,5 @@ join_landTypes(
 defaults to the layers given in 2022}
 }
 \description{
-TO DO: import new tenures and land ownership boundaries
+Old function - I will delete
 }
