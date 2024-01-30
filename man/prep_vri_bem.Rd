@@ -5,9 +5,10 @@
 \title{Prep the vri-bem object}
 \usage{
 prep_vri_bem(
-  gdbpath,
+  gdbpath = NA,
   hab_layername,
   minsize = 10000,
+  inputPath = NA,
   minhabscore = 2,
   sec_beu = 0,
   incl_hibernation = FALSE

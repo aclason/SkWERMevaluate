@@ -134,6 +134,34 @@ join_huckleberry <- function(Hab_lay, huck_path, huck_layername, poly_function =
 }
 
 
+
+#' Join habitat layer with territorial boundaries
+#'
+#' @param Hab_lay
+#' @param aoi
+#' @param layername
+#'
+#' @return
+#' @export
+#'
+#' @examples
+join_FN_bounds <- function(Hab_lay, aoi, layername ){
+
+  bounds_sf <- read_cutblocks(aoi)
+
+  ccb <- ccb %>%
+    dplyr::select(.,c("OPENING_ID","HARVEST_YEAR"))
+
+  Hab_lay_ccb <- st_join(Hab_lay, ccb, left=TRUE,largest=TRUE)
+
+  return(Hab_lay_ccb)
+
+}
+
+
+
+
+
 #' Join with land ownership
 #'
 #' @param Hab_lay Habitat layer (sf) typically created in created by clean_vri_bem

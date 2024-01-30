@@ -26,9 +26,17 @@
 #' murar = bear, mulal = moose
 #'
 #' @examples
-prep_vri_bem <- function(gdbpath, hab_layername, minsize=10000,
+prep_vri_bem <- function(gdbpath=NA, hab_layername, minsize=10000,inputPath=NA,
                          minhabscore=2, sec_beu = 0, incl_hibernation = FALSE){
-  Hab_lay <- read_vri_bem(gdbpath = gdbpath, layername=hab_layername)
+  if(is.na(gdbpath)){
+    Hab_lay <- read_vri_bem(inputPath = inputPath, layername=hab_layername)
+  }else{
+
+    Hab_lay <- read_vri_bem(gdbpath = gdbpath, layername = hab_layername,
+                            inputPath=NA)
+  }
+
+
 
   #remove slivers
   #Hab_layDT <- Hab_layDT[Shape_Area >= minsize]
@@ -38,7 +46,16 @@ prep_vri_bem <- function(gdbpath, hab_layername, minsize=10000,
 
   #which columns to keep - use ModelCodes data to thin
   colKeep <- ModelCodes[Keep_Remove=="Keep"]$FieldName
+  #in 2024 - changed to CROWN_ALL:
+  colKeep <- colKeep[!colKeep %in% c("CROWN_BEAR_1","CROWN_BEAR_2","CROWN_BEAR_3",
+                                     "CROWN_MOOSE_1","CROWN_MOOSE_2","CROWN_MOOSE_3")]
+  colKeep <- c(colKeep, "CROWN_ALL_1", "CROWN_ALL_2", "CROWN_ALL_3")
 
+  if(length(setdiff(colKeep,colnames(Hab_layDT)))>0){
+    print("WARNING - Check which columns to keep in VRI-BEM")
+    #colKeep2 <- colKeep[ !colKeep %in% c("Shape","CR_CLOSURE","COV_PCT_1","PROJ_AGE_1")]
+    #colKeep <- c(colKeep2, "geom","CROWN_CLOSURE")
+  }
   Hab_layDT <- Hab_layDT[,..colKeep]
 
   #1. add ID field----------------------------------------------------------------------------
@@ -62,6 +79,7 @@ prep_vri_bem <- function(gdbpath, hab_layername, minsize=10000,
   # Because of how the columns were labelled, the easiest way is to split the data into chunks
   # (BEU 1, 2 and 3), bind those together and then merge back with the main dataset based on id
 
+  #convert deciles
   s1_dec_val <- 10 - sec_beu/10
   #only keep the types of polygons specified (complex or simple?)
   Hab_layDT <- Hab_layDT[SDEC_1 >= s1_dec_val]
@@ -71,7 +89,7 @@ prep_vri_bem <- function(gdbpath, hab_layername, minsize=10000,
 
 
     BEU_1_names <- c("PolyID","SDEC_1","BEUMC_S1","REALM_1","GROUP_1","CLASS_1","KIND_1","STRCT_S1", "STAND_A1",
-                     "FORESTED_1","CROWN_BEAR_1","CROWN_MOOSE_1",
+                     "FORESTED_1","CROWN_ALL_1",
                      "MALAN_WFD_6C_SU_1", "MALAN_GFD_6C_SU_1", "MALAN_WST_6C_SU_1", "MALAN_WFD_6C_CAP_1",
                      "MALAN_GFD_6C_CAP_1", "MALAN_WST_6C_CAP_1",
                      "MURAR_PEFD_6C_SU_1", "MURAR_PLFD_6C_SU_1", "MURAR_SFD_6C_SU_1", "MURAR_FFD_6C_SU_1",
@@ -114,7 +132,7 @@ prep_vri_bem <- function(gdbpath, hab_layername, minsize=10000,
     print("only polygons with a single BEU class (simple) have been selected")
 
     BEU_1_names <- c("SDEC_1","BEUMC_S1","REALM_1","GROUP_1","CLASS_1","KIND_1","STRCT_S1", "STAND_A1",
-                     "FORESTED_1","CROWN_BEAR_1","CROWN_MOOSE_1",
+                     "FORESTED_1","CROWN_ALL_1",
                      "MALAN_WFD_6C_SU_1", "MALAN_GFD_6C_SU_1", "MALAN_WST_6C_SU_1", "MALAN_WFD_6C_CAP_1",
                      "MALAN_GFD_6C_CAP_1", "MALAN_WST_6C_CAP_1",
                      "MURAR_PEFD_6C_SU_1", "MURAR_PLFD_6C_SU_1", "MURAR_SFD_6C_SU_1", "MURAR_FFD_6C_SU_1",
@@ -180,10 +198,26 @@ prep_vri_bem <- function(gdbpath, hab_layername, minsize=10000,
 
 
   #6. re-order and keep only needed columns -----------------------------------------------------
+ # colKeep <- c("PolyID","TEIS_ID", "BCLCS_LV_2", "BCLCS_LV_3", "BGC_LABEL",
+  #             "SOIL_MOISTURE_REGIME_1","SOIL_NUTRIENT_REGIME",
+   #            "SDEC","BEUMC", "REALM","STAND", "STRCT",
+    #           "PROJ_AGE_1","CR_CLOSURE",
+     #          "SPEC_CD_1","SPEC_PCT_1", "SPEC_CD_2",
+      #         "SPEC_PCT_2", "SPEC_CD_3", "SPEC_PCT_3", "SPEC_CD_4", "SPEC_PCT_4",
+       #        "SPEC_CD_5","SPEC_PCT_5", "SPEC_CD_6", "SPEC_PCT_6", "MEAN_ASP",
+        #       "MEAN_SLOPE", "ELEV",
+         #      "SITE_M3A",
+          #     "MALAN_WFD_6C_SU_WA", "MALAN_GFD_6C_SU_WA",
+           #    "MALAN_WST_6C_SU_WA", "MALAN_SST_6C_SU_WA", "MURAR_PEFD_6C_SU_WA",
+            #   "MURAR_PLFD_6C_SU_WA", "MURAR_SFD_6C_SU_WA", "MURAR_FFD_6C_SU_WA",
+             #  "MURAR_HI_6C_SU_WA", "MURAR_SST_6C_SU_WA",
+              # "murar_hab_min", "malan_hab_min","Salmon",
+               #"Shape_Area","Shape")
+
+
   colKeep <- c("PolyID","TEIS_ID", "BCLCS_LV_2", "BCLCS_LV_3", "BGC_LABEL",
                "SOIL_MOISTURE_REGIME_1","SOIL_NUTRIENT_REGIME",
-               "SDEC","BEUMC", "REALM","STAND", "STRCT",
-               "PROJ_AGE_1","CR_CLOSURE",
+               "SDEC","BEUMC", "REALM","STAND", "STRCT","CROWN_ALL",
                "SPEC_CD_1","SPEC_PCT_1", "SPEC_CD_2",
                "SPEC_PCT_2", "SPEC_CD_3", "SPEC_PCT_3", "SPEC_CD_4", "SPEC_PCT_4",
                "SPEC_CD_5","SPEC_PCT_5", "SPEC_CD_6", "SPEC_PCT_6", "MEAN_ASP",

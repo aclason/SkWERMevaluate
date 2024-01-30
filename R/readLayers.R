@@ -47,8 +47,18 @@ read_tsa <- function(gdbpath=NULL,layername=NULL,tsa = "Lakes TSA"){
 #' @export
 #'
 #' @examples
-read_vri_bem <- function(gdbpath,layername){
-  Hab_layer <- st_read(dsn = gdbpath, layer = layername)
+read_vri_bem <- function(gdbpath=NA,layername,inputPath=NA){
+
+  if(is.na(gdbpath)){
+
+    Hab_layer <- st_read(paste0(inputPath,layername))
+
+  }else{
+
+    Hab_layer <- st_read(dsn = gdbpath, layer = layername)
+
+  }
+
   return(Hab_layer)
 }
 
@@ -184,6 +194,28 @@ read_huckleberry <- function(huck_path, huck_layername){
 read_wbp <- function(wbp_path, wbp_layername){
 
   wbp_layer <- rast(paste0(wbp_path, wbp_layername))
+
+  return(wbp_layer)
+
+}
+
+#' Read territorial boundaries
+#'
+#' @param FN_bounds_path
+#' @param FN_bounds_layernames
+#' @param FN_names description
+#'
+#' @return
+#' @export
+#'
+#' @importFrom terra rast
+#'
+#' @examples
+read_FN_bounds <- function(FN_bounds_path, FN_bounds_layernames, FN_names){
+
+  FN_file_names <- paste0(FN_bounds_path,FN_bounds_layernames)
+
+  FN_bounds <- map(FN_file_names,~ read_sf(.))
 
   return(wbp_layer)
 
