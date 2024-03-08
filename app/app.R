@@ -9,7 +9,6 @@ library(leaflet)
 
 #-- Load data (can't use project working directory shortcut)
 # Just a single layer to initially get the code working
-#Hab_lay <- st_read("C:/users/farne/OneDrive/Documents/Borealis_Ecological_Services/SkWERM/SkWERMevaluate/app/data/SkWERM_Bulkley TSA_forSelection.gpkg")
 # reproject to datum = WGS84
 #Hab_lay <- st_transform(Hab_lay, crs = "+proj=longlat")
 #-- Prep data
@@ -21,8 +20,8 @@ library(leaflet)
 Hab_lay_options <- c("Bulkley TSA", "Kispiox TSA")
 
 Hab_lay <- list(
-  Bulkley <- st_read("C:/users/farne/OneDrive/Documents/Borealis_Ecological_Services/SkWERM/SkWERMevaluate/app/data/SkWERM_Bulkley TSA_forSelection.gpkg"),
-  Kispiox <- st_read("C:/users/farne/OneDrive/Documents/Borealis_Ecological_Services/SkWERM/SkWERMevaluate/app/data/SkWERM_Kispiox TSA_forSelection.gpkg")
+  Bulkley <- st_read("./app/data/SkWERM_Bulkley TSA_forSelection.gpkg"),
+  Kispiox <- st_read("./app/data/SkWERM_Kispiox TSA_forSelection.gpkg")
 )
 # Define names for the list elements
 names(Hab_lay) <- Hab_lay_options
