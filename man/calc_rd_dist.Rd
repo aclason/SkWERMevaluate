@@ -4,9 +4,11 @@
 \alias{calc_rd_dist}
 \title{Calculate distance to nearest road}
 \usage{
-calc_rd_dist(aoi = "Lakes TSA", Hab_lay)
+calc_rd_dist(aoi, road_path, road_layer, Hab_lay)
 }
 \arguments{
+\item{aoi}{#right now, only clipped for bcdata download road layer}
+
 \item{Hab_lay}{}
 }
 \description{

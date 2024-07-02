@@ -4,10 +4,10 @@
 \alias{remove_privateLand}
 \title{Remove private land}
 \usage{
-remove_privateLand(Hab_lay, gdbpath, layername)
+remove_privateLand(Hab_lay, land_path, land_name)
 }
 \arguments{
-\item{layername}{}
+\item{land_name}{}
 }
 \description{
 Remove private land

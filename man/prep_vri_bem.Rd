@@ -4,20 +4,14 @@
 \alias{prep_vri_bem}
 \title{Prep the vri-bem object}
 \usage{
-prep_vri_bem(
-  gdbpath = NA,
-  hab_layername,
-  minsize = 10000,
-  inputPath = NA,
-  minhabscore = 2,
-  sec_beu = 0,
-  incl_hibernation = FALSE
-)
+prep_vri_bem(vri_bem_path = NA, hab_layername, minsize = 10000, inputPath = NA)
 }
 \arguments{
+\item{minsize}{minimum area for a polygon (m2) to be included for site assessment}
+
 \item{gdbpath}{pathway to geodatabase containing VRI-BEM layer}
 
-\item{minsize}{minimum area for a polygon (m2) to be included for site assessment}
+\item{layername}{name of the VRI-BEM layer}
 
 \item{minhabscore}{maximum habitat score (numeric 1 - 5) to be included for site assessment}
 
@@ -25,8 +19,6 @@ prep_vri_bem(
 no complex polygons selected for validation)}
 
 \item{incl_hibernation}{}
-
-\item{layername}{name of the VRI-BEM layer}
 }
 \description{
 This function imports the habitat layer (or calls it from memory), removes unnecessary columns
@@ -39,4 +31,5 @@ created during the VRI-BEM combination process. Polygons smaller than this are m
 default value of 10000 m2 (1 ha).
 
 murar = bear, mulal = moose
+minhabscore=2, sec_beu = 0, incl_hibernation = FALSE
 }

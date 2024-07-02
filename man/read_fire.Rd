@@ -4,7 +4,7 @@
 \alias{read_fire}
 \title{Read historic fire perimeter polygons}
 \usage{
-read_fire(gdbpath = NULL, layername)
+read_fire(aoi, firepath = NULL, fire_layer = NULL)
 }
 \value{
 sf object

@@ -3,16 +3,16 @@
 #' Remove private land
 #'
 #' @param Hab_lay
-#' @param gdbpath
-#' @param layername
+#' @param land_path
+#' @param land_name
 #'
 #' @return
 #' @export
 #'
 #' @examples
-remove_privateLand <- function(Hab_lay, gdbpath, layername){
+remove_privateLand <- function(Hab_lay, land_path, land_name){
 
-  priv_layer <- st_read(dsn = gdbpath, layer = layername)
+  priv_layer <- st_read(dsn = land_path, layer = land_name)
 
   polys_ex <- Hab_lay %>%
     st_intersects(.,priv_layer, sparse = TRUE)
@@ -53,14 +53,14 @@ remove_privateLand <- function(Hab_lay, gdbpath, layername){
 #'
 #'
 #' @examples
-join_pem <- function(Hab_lay,gdbpath, layername, largest = TRUE, wbpflag=TRUE){
+join_pem <- function(Hab_lay,pem_path, pem_name, largest = TRUE, wbpflag=TRUE){
 
-  pem <- read_pem(gdbpath, layername)
+  pem <- read_pem(gdbpath = pem_path, layername = pem_name)
 
   pem_ss <- dom_siteseries(pem, wbpflag=TRUE)
 
   pem_ss <- pem_ss %>%
-    dplyr::select(.,-"BGC_ZONE")
+    dplyr::select(.,-c("BGC_ZONE","BGC_SUBZON"))
 
   Hab_lay_p <- st_join(Hab_lay,pem_ss, left=TRUE, largest=largest)
 
@@ -117,25 +117,41 @@ join_huckleberry <- function(Hab_lay, huck_path, huck_layername, poly_function =
 
   huck_layer <- read_huckleberry(huck_path, huck_layername)
 
+  if(!is.null(Hab_lay$PREDICTED_HUCKLEBERRY)){
+    Hab_lay <- Hab_lay %>% select(-PREDICTED_HUCKLEBERRY)
+  }
+
   #huck_layer <- project(huck_layer, crs(Hab_lay))
+  #Hab_lay_h <- terra::extract(huck_layer, Hab_lay,
+   #                           fun = poly_function, bind=TRUE)
+  #Hab_lay_h <- st_as_sf(Hab_lay_h)
+  #Hab_lay_h <- rename(Hab_lay_h,
+    #                  "PREDICTED_HUCKLEBERRY" = "HuckleberryDistribution2022_4classes-003_NAD83")
 
-  Hab_lay_h <- terra::extract(huck_layer, Hab_lay,
-                              fun = poly_function, bind=TRUE)
+#  Hab_lay_h <- Hab_lay_h %>%
+ #   mutate(PREDICTED_HUCKLEBERRY = na_if(PREDICTED_HUCKLEBERRY, NaN))
 
-  Hab_lay_h <- st_as_sf(Hab_lay_h)
-  Hab_lay_h <- rename(Hab_lay_h,
-                      "PREDICTED_HUCKLEBERRY" = "HuckleberryDistribution2022_4classes-003_NAD83")
+  Hab_lay_h <- terra::extract(huck_layer, Hab_lay, fun = table)
+  h_prep <- Hab_lay_h %>%
+    dplyr::mutate(
+      Total = `1` + `2` + `3` + `4`,  # Calculate the total count of all categories
+      Prop_huck_1 = ifelse(Total > 0, round(`1` / Total*100, 0),0),
+      Prop_huck_2 = ifelse(Total > 0, round(`2` / Total*100, 0),0),
+      Prop_huck_3 = ifelse(Total > 0, round(`3` / Total*100, 0),0),
+      Prop_huck_4 = ifelse(Total > 0, round(`4` / Total*100, 0),0)
+    ) %>%
+    dplyr::select(., Prop_huck_1, Prop_huck_2, Prop_huck_3, Prop_huck_4)
 
-  Hab_lay_h <- Hab_lay_h %>%
-    mutate(PREDICTED_HUCKLEBERRY = na_if(PREDICTED_HUCKLEBERRY, NaN))
+  Hab_lay <- cbind(Hab_lay, h_prep)
 
-  return(Hab_lay_h)
+
+  return(Hab_lay)
 
 }
 
 
 
-#' Join habitat layer with territorial boundaries
+#' Join habitat layer with First Nations boundaries
 #'
 #' @param Hab_lay
 #' @param aoi
@@ -145,16 +161,44 @@ join_huckleberry <- function(Hab_lay, huck_path, huck_layername, poly_function =
 #' @export
 #'
 #' @examples
-join_FN_bounds <- function(Hab_lay, aoi, layername ){
+join_FN_bounds <- function(Hab_lay, bounds_path, bounds, FN_names){
+  bounds_sf <- read_FN_bounds(FN_bounds_path = bounds_path,
+                              FN_bounds_layernames = bounds,
+                              FN_names = FN_names)
+  bounds_sf$geometry[3] <- st_make_valid(bounds_sf$geometry[3])
+  bounds_sf <- st_zm(bounds_sf, drop = TRUE)
+  #bounds_sf <- st_cast(bounds_sf, "GEOMETRY")
+  bounds_sf <- st_make_valid(bounds_sf)
 
-  bounds_sf <- read_cutblocks(aoi)
+  Hab_lay_FNb <- st_join(Hab_lay, bounds_sf, left=TRUE)
 
-  ccb <- ccb %>%
-    dplyr::select(.,c("OPENING_ID","HARVEST_YEAR"))
+  return(Hab_lay_FNb)
 
-  Hab_lay_ccb <- st_join(Hab_lay, ccb, left=TRUE,largest=TRUE)
+}
 
-  return(Hab_lay_ccb)
+
+#' Join habitat layer with Fire boundaries
+#'
+#' @param Hab_lay
+#' @param aoi
+#' @param firepath
+#' @param fire_layer description
+#'
+#' @return
+#' @export
+#'
+#' @examples
+join_fire_bounds <- function(Hab_lay,aoi,firepath = NULL, fire_layer = NULL){
+
+  if(is.null(firepath)){
+    fires <- read_fire(aoi = aoi)
+  }else{
+    fires <- read_fire(firepath = firepath, fire_layer = fire_layer, aoi)
+  }
+
+  Hab_lay_fire <- st_join(Hab_lay, fires, left=TRUE,largest=TRUE)
+
+  return(Hab_lay_fire)
 
 }
 

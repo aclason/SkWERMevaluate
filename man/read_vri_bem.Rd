@@ -4,7 +4,7 @@
 \alias{read_vri_bem}
 \title{Read habitat model (vri_bem) layer}
 \usage{
-read_vri_bem(gdbpath = NA, layername, inputPath = NA)
+read_vri_bem(vri_bem_path = NA, layername, inputPath = NA)
 }
 \arguments{
 \item{layername}{}

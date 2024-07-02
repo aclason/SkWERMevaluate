@@ -47,15 +47,15 @@ read_tsa <- function(gdbpath=NULL,layername=NULL,tsa = "Lakes TSA"){
 #' @export
 #'
 #' @examples
-read_vri_bem <- function(gdbpath=NA,layername,inputPath=NA){
+read_vri_bem <- function(vri_bem_path=NA,layername,inputPath=NA){
 
-  if(is.na(gdbpath)){
+  if(is.na(vri_bem_path)){
 
     Hab_layer <- st_read(paste0(inputPath,layername))
 
   }else{
 
-    Hab_layer <- st_read(dsn = gdbpath, layer = layername)
+    Hab_layer <- st_read(dsn = vri_bem_path, layer = layername)
 
   }
 
@@ -107,25 +107,24 @@ read_cutblocks <- function(aoi,gdbpath=NULL,layername=NULL){
 #'
 #'
 #' @examples
-get_roads <- function(aoi = "Lakes TSA",aoi_gdbpath=NULL,aoi_layername=NULL,
+get_roads <- function(aoi = "Lakes TSA", aoi_gdbpath=NULL, aoi_layername=NULL,
                       savetofile = FALSE){
 
-  #get boundary
-  if(is.character(aoi)){
-    aoi_bound <- read_tsa(tsa = aoi, gdbpath = NULL, layername = NULL)
-  }else{
-    aoi_bound <- st_read(dsn = aoi_gdbpath, layer = aoi_layername)
-  }
+    #get boundary
+    if(is.character(aoi)){
+      aoi_bound <- read_tsa(tsa = aoi, gdbpath = NULL, layername = NULL)
+    }else{
+      aoi_bound <- st_read(dsn = aoi_gdbpath, layer = aoi_layername)
+    }
 
+    #download the roads layer from bcdc:
+    rds <- bcdata::bcdc_query_geodata("bb060417-b6e6-4548-b837-f9060d94743e") %>%
+      filter(INTERSECTS(aoi_bound)) %>% #filter for records that are within the DPG boundary
+      collect() #collect/download the data
 
-  #download the roads layer from bcdc:
-  rds <- bcdata::bcdc_query_geodata("bb060417-b6e6-4548-b837-f9060d94743e") %>%
-    filter(INTERSECTS(aoi_bound)) %>% #filter for records that are within the DPG boundary
-    collect() #collect/download the data
-
-  if(savetofile==TRUE){
-    st_write(rds,"roads.gpkg")
-  }
+    if(savetofile==TRUE){
+      st_write(rds,"roads.gpkg")
+    }
 
 
   return(rds)
@@ -138,20 +137,39 @@ get_roads <- function(aoi = "Lakes TSA",aoi_gdbpath=NULL,aoi_layername=NULL,
 #' @return sf object
 #' @import sf
 #' @export
-read_fire <- function(gdbpath = NULL, layername) {
+read_fire <- function(aoi, firepath = NULL, fire_layer = NULL) {
 
   #If gdbpath is null read information from bcdata
-  if (is.null(gdbpath)){
-    fire_query <- bcdc_query_geodata(record =  "22c7cb44-1463-48f7-8e47-88857f207702") %>%
-      select(SHAPE)
+  if(is.null(firepath)){
 
-    if(length(wkt_filter) > 0 ){
-      wl_query <- wl_query %>% filter(INTERSECTS(sf::st_as_sfc(wkt_filter)))
+    aoi_fire <- read_tsa(tsa = aoi)
+
+    fire_p <- bcdc_query_geodata(record =  "22c7cb44-1463-48f7-8e47-88857f207702") %>%
+      filter(INTERSECTS(aoi_fire)) %>% #filter for records that are within the DPG boundary
+      collect() %>% #collect/download the data
+      dplyr::select(.,c(FIRE_NUMBER,FIRE_YEAR))
+
+    fire_c <- bcdc_query_geodata(record = "cdfc2d7b-c046-4bf0-90ac-4897232619e1") %>%
+      filter(INTERSECTS(aoi_fire)) %>% #filter for records that are within the DPG boundary
+      collect()
+
+    if (nrow(fire_c) == 0) {
+      print("no fire records in 2023")
+
+      fire <- fire_p
+
+    }else{
+      fire_c <- fire_c %>%
+        dplyr::select(.,c(FIRE_NUMBER,FIRE_YEAR))
+
+      fire <- rbind(fire_p,fire_c)
     }
-    fire <- collect(wl_query)
 
-  } else {
-    fire <- st_read(dsn = gdbpath, layer = layername, quiet = TRUE)
+    fire <- st_make_valid(fire)
+
+
+  }else{
+    fire <- st_read(dsn = firepath, layer = fire_layer, quiet = TRUE)
   }
 
   fire <- sf::st_make_valid(fire)
@@ -215,9 +233,15 @@ read_FN_bounds <- function(FN_bounds_path, FN_bounds_layernames, FN_names){
 
   FN_file_names <- paste0(FN_bounds_path,FN_bounds_layernames)
 
-  FN_bounds <- map(FN_file_names,~ read_sf(.))
+  FN_bounds <-  FN_file_names %>%
+    map2(FN_names, ~read_sf(.x) %>%
+           mutate(FN_bound = .y)) %>%
+    map(~st_transform(., crs = 3005)) %>%
+    map(~select(., FN_bound, geometry)) %>%
+    reduce(rbind)
 
-  return(wbp_layer)
+
+  return(FN_bounds)
 
 }
 

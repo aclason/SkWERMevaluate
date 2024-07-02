@@ -4,7 +4,7 @@
 \alias{join_pem}
 \title{Join PEM with habitat layer}
 \usage{
-join_pem(Hab_lay, gdbpath, layername, largest = TRUE, wbpflag = TRUE)
+join_pem(Hab_lay, pem_path, pem_name, largest = TRUE, wbpflag = TRUE)
 }
 \arguments{
 \item{layername}{description}

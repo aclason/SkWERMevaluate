@@ -1,0 +1,274 @@
+---
+title: "Evaluating SkWERM"
+author: "Alana Clason"
+date: "05/03/2023"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+#---------------------- Load libraries---------------------------------
+ls <- "bcdata"
+ls <- append(ls, c("tidyverse", "data.table")) # Data Management and Manipulation
+ls <- append(ls, c("terra","sf")) # geo comp
+ls <- append(ls, c("SkWERMevaluate")) # geo comp.
+
+# Install if needed -- then load.
+new.packages <- ls[!(ls %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+lapply(ls, library, character.only = TRUE)  # load the required packages
+rm(ls, new.packages)
+
+```
+
+# 1. Process SkWERM model by TSA
+
+## Set the input, outputs and layer names
+
+```{r}
+gdbpath <- "D:/Sync/BVRC/FSD program/SkWERM/SkWERMevaluate/Inputs/TSAs.gdb"
+lay_names <- st_layers(gdbpath)
+hab_layers <- lay_names$name
+tsas <- c("Morice TSA","Nass TSA", "Lakes TSA", "Kispiox TSA", "Bulkley TSA")
+
+# territorial boundaries
+FN_territory_path <- "D:/Sync/BVRC/FSD program/SkWERM/SkWERMevaluate/Inputs/FN_bounds/"
+territory_bounds <- c("gitanyow_traditional_territory_boundary.kml",
+                      "WFN.shp",
+                      "Gitxsan_boundary.shp",
+                      "OW_boundary.shp",
+                      "Cheslatta_FN.shp",
+                      "Lake_Babine_FN.shp")
+FN_names <- c("Gitanyow","WFN","Gitxan","OW","Cheslatta","LBN")
+output_path <- "D:/Sync/BVRC/FSD program/SkWERM/SkWERMevaluate/Outputs/"
+
+
+```
+
+
+### Decisions that occur in this first step:
+- minimum polygon size to be included - currently set to 1 ha - eliminates slivers
+
+For more information on the defaults and options currently available to change while processing the habitat model, see:
+```{r message = FALSE, warning = FALSE, eval = FALSE}
+?prep_vri_bem
+
+```
+
+
+```{r message = FALSE, warning = FALSE, eval = FALSE}
+
+for(ix in 1:length(hab_layers)){
+  hab_layername <- hab_layers[ix]
+  TSA <- tsas[ix]
+  
+  #1. read the habitat layer
+  Hab_lay <- prep_vri_bem(vri_bem_path = gdbpath,
+                          hab_layername = hab_layername,
+                          inputPath = NA)
+  
+  #2. remove private land
+  land_path <- "D:/Sync/BVRC/FSD program/SkWERM/SkWERMevaluate/Inputs/Skeena_private_land.gdb"
+  land_name <- "private_land_CrownProvincial_excluded"
+  Hab_lay <- remove_privateLand(Hab_lay = Hab_lay,
+                                land_path = land_path,
+                                land_name = land_name)
+  
+  #3. read, process PEM and join with habitat layer
+  if(TSA == "Lakes TSA"){
+    pem_path <- "D:/Sync/BVRC/FSD program/SkWERM/SkWERMevaluate/Inputs/PEM_Lakes.gdb"
+    pem_name <- "TEI_Long_Tbl_DND"
+    Hab_lay <- join_pem(Hab_lay = Hab_lay,
+                        pem_path = pem_path,
+                        pem_name = pem_name)
+  }
+  
+  #4. Huckleberries
+  huck_path <- "D:/Sync/BVRC/FSD program/SkWERM/SkWERMevaluate/Inputs/TIF_huck/"
+  huck_layername <- "HuckleberryDistribution2022_4classes-003_NAD83.tif"
+  
+  Hab_lay <- join_huckleberry(Hab_lay, huck_path, huck_layername)
+  
+  #5. predicted Whitebark pine layer
+  wbp_path <- "D:/Sync/BVRC/FSD program/SkWERM/SkWERMevaluate/Inputs/"
+  wbp_layername <- "PINUALB_occcov.tif"
+  
+  Hab_lay <- join_wbp(Hab_lay, wbp_path, wbp_layername)
+  
+  #6. intersect with cutblocks - WLRS already added HARVEST_YEAR through VRI_BEM creation,
+  #but not the same
+  Hab_lay <- join_ccb(Hab_lay, aoi= TSA)
+  #deal with repeat harvests (not sure which is more accurate yet)
+  Hab_lay <- Hab_lay %>%
+    dplyr::rename(HARVEST_YR_vri = HARVEST_YEAR.x,
+                  HARVEST_YR_ccb = HARVEST_YEAR.y)
+  
+  #7. Calculate distance from roads:
+  road_path <- "D:/Spatial Data/Roads/BC_CEF_INT_RDS_20230612/"
+  road_layer <- "BC_CEF_INT_RDS_20230612.shp"
+  Hab_lay <- calc_rd_dist(Hab_lay = Hab_lay, 
+                          road_path = road_path,
+                          road_layer = road_layer)
+  
+  #8. Join with territory boundaries
+  Hab_lay <- join_FN_bounds(Hab_lay = Hab_lay, bounds = territory_bounds,
+                           FN_names = FN_names, bounds_path = FN_territory_path)
+  
+  #9. Join with fire year (if overlaps a perimeter) - up to 2022
+  Hab_lay <- join_fire_bounds(Hab_lay = Hab_lay,
+                             aoi = TSA,
+                             firepath = NULL, 
+                             fire_layer = NULL)
+  
+  ### convert to data table:
+  Hab_layDT <- as.data.table(Hab_lay)
+  
+  
+  #8. create a BEU-BGZ label
+  Hab_layDT[,BEU_BEC:=paste0(BEUMC,"_",BGC_LABEL), by = PolyID]
+  
+  #9. crown closure - already in model?
+  #Hab_layDT[,CROWN_ALL := ifelse(CR_CLOSURE > 60, "VH",
+   #                         ifelse(CR_CLOSURE <= 25, "VL-L",
+    #                          ifelse(CR_CLOSURE <= 40, "M",
+     #                           ifelse(CR_CLOSURE <= 60, "H",NA))))]
+  
+  #10. dominant tree genus/species
+  unique(Hab_layDT[,SPEC_CD_1])
+  Hab_layDT[, DOM_TREE := ifelse(SPEC_CD_1 =="S","Spruce",
+                           ifelse(SPEC_CD_1 =="SX","Spruce",
+                           ifelse(SPEC_CD_1 =="SW","Spruce",
+                           ifelse(SPEC_CD_1 == "SE","Spruce",
+                            ifelse(SPEC_CD_1 == "SB","Spruce",
+                             ifelse(SPEC_CD_1 == "BL","Fir",
+                              ifelse(SPEC_CD_1 == "BA","Fir",
+                               ifelse(SPEC_CD_1 == "B", "Fir",
+                               ifelse(SPEC_CD_1 == "PLI","Pine",
+                                ifelse(SPEC_CD_1 == "PL","Pine",
+                                 ifelse(SPEC_CD_1 == "AT","Populus",
+                                  ifelse(SPEC_CD_1 == "ACT","Populus",
+                                   ifelse(SPEC_CD_1 == "AC","Populus",
+                                    ifelse(SPEC_CD_1 == "HW","Hemlock",
+                                     ifelse(SPEC_CD_1 == "HM","Hemlock",
+                                      ifelse(SPEC_CD_1 == "H","Hemlock",
+                                      ifelse(SPEC_CD_1 == "EP","Birch",
+                                       ifelse(SPEC_CD_1 == "PA","Whitebark",
+                                        ifelse(SPEC_CD_1 == "CW","Cedar",
+                                          ifelse(SPEC_CD_1 == "FDI","Douglas-fir",
+                                             SPEC_CD_1))))))))))))))))))))]
+  
+  #11. merge structural stage 6 & 7
+  Hab_layDT[,STRCT_mod:= ifelse(STRCT==6,7,ifelse(STRCT=="7a", 7,STRCT))]
+  Hab_layDT[,STRCT_2_mod:= ifelse(STRCT_S2==6,7,ifelse(STRCT_S2=="7a", 7,STRCT_S2))]
+  Hab_layDT[,STRCT_3_mod:= ifelse(STRCT_S3==6,7,ifelse(STRCT_S3=="7a", 7,STRCT_S3))]
+  
+  #12. add ecotype label - based on primary BEU label
+  Hab_layDT[, ECO_TYPE := paste0(BEU_BEC,"_",STAND,"_",STRCT_mod,"_",CROWN_ALL,"_",DOM_TREE)]
+  
+  
+  Hab_lay <- st_as_sf(Hab_layDT)
+  Hab_lay <- st_make_valid(Hab_lay)
+  
+  write_rds(Hab_lay, paste0(output_path,"SkWerm_",TSA,"_all_cols.rds"))
+  
+}
+
+```
+
+
+```{r}
+tsas <- c("Morice TSA","Nass TSA", "Lakes TSA", "Kispiox TSA", "Bulkley TSA")
+inputPath <- "D:/Sync/BVRC/FSD program/SkWERM/SkWERMevaluate/Outputs/"
+outputPath <- "D:/Github/SkWERMss-app/data/"
+
+#get previously sampled polygon ids
+prev_path <- "D:/Sync/BVRC/FSD program/SkWERM/SkWERMevaluate/Inputs/2023_polygons"
+prev_name <- "2023_polygons.shp"
+prev_polys <- st_read(file.path(prev_path, prev_name))
+
+
+for(ix in 1:length(hab_layers)){
+  TSA <- tsas[ix]
+  Hab_lay <- readRDS(paste0(inputPath,"SkWerm_",TSA,"_all_cols.rds"))
+  
+  Hab_layDT <- data.table(Hab_lay)
+  
+  #1. dealing with TSAs that don't have pems
+  Hab_layDT[,`:=`(BGC_SITESERIES = as.character(ifelse(is.null(Hab_layDT$ss),NA,ss)),
+                  WBP_pem = as.character(ifelse(is.null(Hab_layDT$WBP_pem),NA,WBP_pem)))]
+  
+  #2. add empty columns
+  Hab_layDT[,`:=`(LAT_COVER = NA, LANDSCAPE_PROFILE = NA,
+                  SOIL_MOISTURE_REGIME = SOIL_MOISTURE_REGIME_1)]
+  
+  #3. Flag previously sampled polygons
+  Hab_layDT[PolyID_23 %in% prev_polys$PolyID, Prev_Samp := "Yes"]
+  Hab_layDT[is.na(Prev_Samp), Prev_Samp := "No"]
+  
+  #4. fix BEU_BEC label (and ecotype)
+  unique(Hab_layDT$BEUMC)
+  unique(Hab_layDT$BGC_LABEL)# drop the NA
+  Hab_layDT[, BEC_noNA := gsub("NA$","",BGC_LABEL)]
+  #unique(Hab_layDT$BEC_noNA)
+  #Hab_layDT[, BEC_noNA := gsub("un","",BEC_noNA)]
+  
+  
+  Hab_layDT[,BEU_BEC:=paste0(BEUMC,"_",BEC_noNA), by = PolyID]
+  Hab_layDT[, ECO_TYPE := paste0(BEU_BEC,"_",STAND,"_",STRCT_mod,"_",CROWN_ALL,"_",DOM_TREE)]
+  
+  colClean <- c("PolyID","PolyID_23","TEIS_ID", "ECO_TYPE","BCLCS_LV_2", "BCLCS_LV_3", 
+                 "BGC_LABEL","LANDSCAPE_PROFILE","BEU_BEC","DOM_TREE",
+                 "BGC_SITESERIES","BEUMC","ELEV", "MEAN_ASP","MEAN_SLOPE",
+                 "SOIL_MOISTURE_REGIME","SOIL_NUTRIENT_REGIME",
+                 "SITE_M3A",
+                 "SDEC", "REALM","STAND","STRCT", "STRCT_mod",
+                 #"SDEC_2","BEUMC_S2", "REALM_2","STAND_A2", "STRCT_2_mod","CROWN_ALL_2",
+                 #"SDEC_3","BEUMC_S2", "REALM_2","STAND_A3", "STRCT_3_mod","CROWN_ALL_3",
+                 "PROJ_AGE_1","CR_CLOSURE","CROWN_ALL",
+                 "SPEC_CD_1","SPEC_PCT_1", "SPEC_CD_2",
+                 "SPEC_PCT_2", "SPEC_CD_3", "SPEC_PCT_3", "SPEC_CD_4", "SPEC_PCT_4",
+                 "SPEC_CD_5","SPEC_PCT_5", "SPEC_CD_6", "SPEC_PCT_6", "LAT_COVER",
+                 "PREDICTED_WBP","WBP_pem","Salmon",
+                 "Prop_huck_1", "Prop_huck_4",  "Road_dist",
+                 "HARVEST_YR_ccb",  "FN_bound", "FIRE_YEAR",
+                 "MALAN_WFD_6C_SU_WA", "MALAN_GFD_6C_SU_WA",
+                 "MALAN_WST_6C_SU_WA", "MURAR_PEFD_6C_SU_WA",
+                 "MURAR_PLFD_6C_SU_WA", "MURAR_SFD_6C_SU_WA", "MURAR_FFD_6C_SU_WA",
+                 "MURAR_HI_6C_SU_WA",
+                 "murar_hab_min","murar_hab_min_hib","malan_hab_min","Prev_Samp")
+  
+  shape_geom <- grep("geom|shape|geometry", colnames(Hab_layDT), value = TRUE)
+  #murars <- grep("MURAR", colnames(Hab_layDT), value = TRUE)
+  #malans <- grep("MALAN", colnames(Hab_layDT), value = TRUE)
+  #colClean <- c(colClean, murars, malans,shape_geom)
+  colClean <- c(colClean, shape_geom)
+  Hab_layDT <- Hab_layDT[,..colClean]
+  
+  setnames(Hab_layDT, old = shape_geom, new = "geom")
+  
+  Hab_lay <- st_as_sf(Hab_layDT)
+  Hab_lay <- st_cast(Hab_lay, "MULTIPOLYGON")
+  
+  #put this in the app:
+  #st_write(Hab_lay, paste0("D:/Github/SkWERMevaluate/SkWERM_app/data/",
+   #                           "SkWerm_",TSA,"_forSelection.gpkg"),
+    #       append = FALSE)
+  
+  write_rds(Hab_lay, paste0(outputPath,TSA,"_forSelection.rds"))
+  
+  #fwrite(Hab_layDT[,geometry:=NULL], 
+   #         paste0(output_path,"SkWerm_",TSA, "_forSelection.csv"))
+}
+
+#checking BEU_BEC names:
+hab_lay_names <- list.files(outputPath, full.names = TRUE)
+hab_lays <-  hab_lay_names %>%
+  map(., ~ readRDS(.x)) %>%
+  reduce(rbind)
+unique(hab_lays$BEU_BEC)
+hab_dt <- data.table(hab_lays)
+hab_bue_bec <- setorder(unique(hab_dt[,.(BEU_BEC)]))
+fwrite(hab_bue_bec, file.path("D:/Sync/BVRC/FSD program/SkWERM/SkWERMevaluate/Outputs/",
+                                           "uniq_BEU_BEC.csv"))
+```
