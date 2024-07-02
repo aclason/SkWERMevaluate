@@ -1,0 +1,16 @@
+.Rproj.user
+.Rhistory
+.Rdata
+.httr-oauth
+.DS_Store
+
+Inputs/ccb.gpkg
+
+Inputs/
+inst/doc
+docs
+
+app/data/
+
+*.gpkg
+*.rds
